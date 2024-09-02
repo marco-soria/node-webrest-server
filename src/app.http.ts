@@ -1,45 +1,55 @@
-import fs from 'fs';
-import http from 'http';
+import express, { Router } from 'express';
+import path from 'path';
+
+interface Options {
+  port: number;
+  routes: Router;
+  public_path?: string;
+}
 
 
-const server = http.createServer((req, res) => {
+export class Server {
 
-  console.log(req.url);
+  private app = express();
+  private readonly port: number;
+  private readonly publicPath: string;
+  private readonly routes: Router;
 
-  // res.writeHead(200, { 'Content-Type': 'text/html' });
-  // res.write(`<h1>URL ${ req.url }</h1>`);
-  // res.end();
-
-  // const data = { name: 'John Doe', age: 30, city: 'New York' };
-  // res.writeHead(200, { 'Content-Type': 'application/json' });
-  // res.end( JSON.stringify(data) );
-
-  if ( req.url === '/' ) {
-    const htmlFile = fs.readFileSync('./public/index.html','utf-8');
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end( htmlFile );
-    return;
-  } 
-
-  
-  if ( req.url?.endsWith('.js') ) {
-    res.writeHead(200, { 'Content-Type': 'application/javascript' });
-  } else if( req.url?.endsWith('.css')) {
-    res.writeHead(200, { 'Content-Type': 'text/css' });
+  constructor(options: Options) {
+    const { port, routes, public_path = 'public' } = options;
+    this.port = port;
+    this.publicPath = public_path;
+    this.routes = routes;
   }
 
-  const responseContent = fs.readFileSync(`./public${ req.url }`,'utf-8');
-  res.end(responseContent);
+  
+  
+  async start() {
+    
+
+    //* Middlewares
+    this.app.use( express.json() ); // raw
+    this.app.use( express.urlencoded({ extended: true }) ); // x-www-form-urlencoded
+
+    //* Public Folder
+    this.app.use( express.static( this.publicPath ) );
 
 
+    //* Routes
+    this.app.use( this.routes );
 
 
-});
+    //* SPA
+    this.app.get('*', (req, res) => {
+      const indexPath = path.join( __dirname + `../../../${ this.publicPath }/index.html` );
+      res.sendFile(indexPath);
+    });
+    
 
+    this.app.listen(this.port, () => {
+      console.log(`Server running on port ${ this.port }`);
+    });
 
+  }
 
-server.listen(8080, () => {
-  console.log('Server running on port 8080');
-})
-
-
+}
